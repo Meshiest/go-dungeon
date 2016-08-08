@@ -313,8 +313,7 @@ func (d *Dungeon) Generate() {
 		region = 2
 		d.Regions = []int{0, 0}
 		for _, room := range(d.Rooms) {
-
-			if d.Grid[room.X][room.Y] == 1 {
+			if room.X < d.Size && room.Y < d.Size && d.Grid[room.X][room.Y] == 1 {
 				d.Regions = append(d.Regions, 0)
 				d.SetRegion(room.X, room.Y, region)
 				region ++
