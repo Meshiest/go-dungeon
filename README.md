@@ -11,3 +11,11 @@ To preview a dungeon, you can `dungeon.Print()`, which will demo the dungeon usi
 To access the grid of a generated dungeon, you can use the `[][]int dungeon.Grid` where `1` denotes floor and `0` denotes wall
 
 Check out *main.go* for an example! (`go run main.go`)
+
+Here is a 100x100 with an attempted 200 rooms:
+
+![](http://i.imgur.com/5aFnOGH.png)
+
+Here is a 50x50 with an attempted 200 rooms rendered with opengl:
+
+![](http://i.imgur.com/LPEtZSP.png)
