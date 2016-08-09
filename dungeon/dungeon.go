@@ -1,10 +1,10 @@
 package dungeon
 
 import (
-	"math/rand"
-	"time"
-	"sort"
 	"fmt"
+	"math/rand"
+	"sort"
+	"time"
 )
 
 type Rectangle struct {
@@ -18,7 +18,7 @@ func (r *Rectangle) Contains(p Point) bool {
 		p.Y <= r.Y+r.Height
 }
 
-func Max (a, b int) int {
+func Max(a, b int) int {
 	if a > b {
 		return a
 	} else {
@@ -26,7 +26,7 @@ func Max (a, b int) int {
 	}
 }
 
-func Min (a, b int) int {
+func Min(a, b int) int {
 	if a < b {
 		return a
 	} else {
@@ -35,19 +35,19 @@ func Min (a, b int) int {
 }
 
 func (a *Rectangle) Intersects(b *Rectangle) bool {
-	return Max(a.X, b.X) < Min(a.X + a.Width, b.X + b.Width) &&
-		Max(a.Y, b.Y) < Min(a.Y + a.Height, b.Y + b.Height)
+	return Max(a.X, b.X) < Min(a.X+a.Width, b.X+b.Width) &&
+		Max(a.Y, b.Y) < Min(a.Y+a.Height, b.Y+b.Height)
 }
 
 func (a *Rectangle) Intersection(b *Rectangle) *Rectangle {
 	x := Max(a.X, b.X)
 	y := Max(a.Y, b.Y)
-	w := Min(a.X + a.Width, b.X + b.Width) - x
-	h := Min(a.Y + a.Height, b.Y + b.Height) - y
+	w := Min(a.X+a.Width, b.X+b.Width) - x
+	h := Min(a.Y+a.Height, b.Y+b.Height) - y
 	return &Rectangle{
-		X: x,
-		Y: y,
-		Width: w,
+		X:      x,
+		Y:      y,
+		Width:  w,
 		Height: h,
 	}
 }
@@ -56,12 +56,16 @@ type Point struct {
 	X, Y int
 }
 
+type Randomizer interface {
+	Int() int
+}
 type Dungeon struct {
 	Grid                                       [][]int
 	Size, NumRooms, NumTries, MinSize, MaxSize int
 	Rooms                                      []Rectangle
 	Regions                                    []int
 	Bounds                                     Rectangle
+	Rand                                       Randomizer
 }
 
 func NewDungeon(size, rooms int) *Dungeon {
@@ -69,8 +73,6 @@ func NewDungeon(size, rooms int) *Dungeon {
 	for i := 0; i < size; i++ {
 		grid[i] = make([]int, size)
 	}
-	
-	rand.Seed(time.Now().Unix())
 
 	dungeon := &Dungeon{
 		Size:     size,
@@ -82,6 +84,7 @@ func NewDungeon(size, rooms int) *Dungeon {
 		Rooms:    []Rectangle{},
 		Regions:  []int{},
 		Bounds:   Rectangle{X: 1, Y: 1, Width: size - 2, Height: size - 2},
+		Rand:     rand.New(rand.NewSource(time.Now().Unix())),
 	}
 	dungeon.Generate()
 	return dungeon
@@ -119,16 +122,16 @@ func (d *Dungeon) AddWalls() {
 
 func (d *Dungeon) AddRoom() {
 	for i := 0; i < d.NumTries; i++ {
-		w := RandInt(d.MinSize, d.MaxSize)
-		h := RandInt(d.MinSize, d.MaxSize)
-		x := RandInt(1, d.Size - w - 1)
-		y := RandInt(1, d.Size - w - 1)
-		
+		w := RandInt(d.MinSize, d.MaxSize, d.Rand)
+		h := RandInt(d.MinSize, d.MaxSize, d.Rand)
+		x := RandInt(1, d.Size-w-1, d.Rand)
+		y := RandInt(1, d.Size-w-1, d.Rand)
+
 		rect := Rectangle{X: x, Y: y, Width: w, Height: h}
-		bounds := Rectangle{X: x-1, Y: y-1, Width: w+2, Height: h+2}
-		
+		bounds := Rectangle{X: x - 1, Y: y - 1, Width: w + 2, Height: h + 2}
+
 		intersect := false
-		for _, room := range(d.Rooms) {
+		for _, room := range d.Rooms {
 			if (&bounds).Intersects(&room) {
 				intersect = true
 				break
@@ -143,10 +146,10 @@ func (d *Dungeon) AddRoom() {
 	}
 }
 
-func (d *Dungeon) SetRegion (x, y, region int) {
+func (d *Dungeon) SetRegion(x, y, region int) {
 	if d.Bounds.Contains(Point{X: x, Y: y}) && d.Grid[x][y] != region && d.Grid[x][y] > 0 {
 		d.Grid[x][y] = region
-		d.Regions[region] ++
+		d.Regions[region]++
 		d.SetRegion(x-1, y, region)
 		d.SetRegion(x+1, y, region)
 		d.SetRegion(x, y-1, region)
@@ -156,8 +159,8 @@ func (d *Dungeon) SetRegion (x, y, region int) {
 
 type Node struct {
 	X, Y, Depth int
-	Dungeon *Dungeon
-	Parent *Node
+	Dungeon     *Dungeon
+	Parent      *Node
 }
 
 type NodeList []*Node
@@ -166,29 +169,28 @@ func (c NodeList) Len() int           { return len(c) }
 func (c NodeList) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c NodeList) Less(i, j int) bool { return c[i].Depth < c[j].Depth }
 
-
-func (d *Dungeon) NewNode (x, y int, parent *Node) *Node {
+func (d *Dungeon) NewNode(x, y int, parent *Node) *Node {
 	depth := 0
 	if parent != nil {
 		depth = parent.Depth + 1
 	}
 
 	return &Node{
-		X: x,
-		Y: y,
-		Parent: parent,
-		Depth: depth,
+		X:       x,
+		Y:       y,
+		Parent:  parent,
+		Depth:   depth,
 		Dungeon: d,
 	}
 }
 
-func (n *Node) Carve (cellType int) {
+func (n *Node) Carve(cellType int) {
 	n.Dungeon.CarvePoint(Point{X: n.X, Y: n.Y}, cellType)
 }
 
-func (d *Dungeon) PrintNodes (nodes [][]*Node) {
-	for x, row := range(d.Grid) {
-		for y, col := range(row) {
+func (d *Dungeon) PrintNodes(nodes [][]*Node) {
+	for x, row := range d.Grid {
+		for y, col := range row {
 			if nodes[x][y] == nil || nodes[x][y].Depth != 0 {
 				if col == 0 {
 					fmt.Print(" ")
@@ -196,14 +198,14 @@ func (d *Dungeon) PrintNodes (nodes [][]*Node) {
 					fmt.Print(col)
 				}
 			} else {
-				fmt.Print(nodes[x][y].Depth)				
+				fmt.Print(nodes[x][y].Depth)
 			}
 		}
 		fmt.Println()
 	}
 }
 
-func (d *Dungeon) Extend (region int) {
+func (d *Dungeon) Extend(region int) {
 	nodes := make([][]*Node, d.Size)
 	for i := 0; i < d.Size; i++ {
 		nodes[i] = make([]*Node, d.Size)
@@ -225,7 +227,7 @@ func (d *Dungeon) Extend (region int) {
 		for j := 0; j < 4; j++ {
 			x := (j/2%2*2-1)*(j%2) + node.X
 			y := ((1-j/2%2)*2-1)*(1-j%2) + node.Y
-			if x >= 0 && x < d.Size - 1 && y >= 0 && y < d.Size - 1 {
+			if x >= 0 && x < d.Size-1 && y >= 0 && y < d.Size-1 {
 				if nodes[x][y] == nil {
 					nodes[x][y] = d.NewNode(x, y, node)
 					nodeList = append(nodeList, nodes[x][y])
@@ -253,8 +255,8 @@ func (d *Dungeon) Generate() {
 	used := map[Point]bool{}
 	connected := []int{}
 
-	for i, roomA := range(d.Rooms) {
-		for j, roomB := range(d.Rooms) {
+	for i, roomA := range d.Rooms {
+		for j, roomB := range d.Rooms {
 			if i == j {
 				continue
 			}
@@ -264,16 +266,16 @@ func (d *Dungeon) Generate() {
 			used[Point{X: i, Y: j}] = true
 
 			boundsA := &Rectangle{
-				X: roomA.X-1,
-				Y: roomA.Y-1,
-				Width: roomA.Width+2,
-				Height: roomA.Height+2,
+				X:      roomA.X - 1,
+				Y:      roomA.Y - 1,
+				Width:  roomA.Width + 2,
+				Height: roomA.Height + 2,
 			}
 			boundsB := &Rectangle{
-				X: roomB.X-1,
-				Y: roomB.Y-1,
-				Width: roomB.Width+2,
-				Height: roomB.Height+2,
+				X:      roomB.X - 1,
+				Y:      roomB.Y - 1,
+				Width:  roomB.Width + 2,
+				Height: roomB.Height + 2,
 			}
 
 			if boundsA.Intersects(boundsB) {
@@ -291,17 +293,16 @@ func (d *Dungeon) Generate() {
 				} else if intersect.Height > 2 {
 					intersect.Y += 1
 					intersect.Height -= 2
-				} else if intersect.Width * intersect.Height == 2 {
+				} else if intersect.Width*intersect.Height == 2 {
 					d.CarveRect(intersect, 1)
 					continue
 				} else {
 					continue
 				}
 
-
 				d.CarvePoint(Point{
-					X: RandInt(intersect.X, intersect.X + intersect.Width),
-					Y: RandInt(intersect.Y, intersect.Y + intersect.Height),
+					X: RandInt(intersect.X, intersect.X+intersect.Width, d.Rand),
+					Y: RandInt(intersect.Y, intersect.Y+intersect.Height, d.Rand),
 				}, 1)
 			}
 
@@ -312,16 +313,16 @@ func (d *Dungeon) Generate() {
 	for {
 		region = 2
 		d.Regions = []int{0, 0}
-		for _, room := range(d.Rooms) {
+		for _, room := range d.Rooms {
 			if room.X < d.Size && room.Y < d.Size && d.Grid[room.X][room.Y] == 1 {
 				d.Regions = append(d.Regions, 0)
 				d.SetRegion(room.X, room.Y, region)
-				region ++
+				region++
 			}
 		}
 
 		// max int value
-		max := int(^uint(0) >> 1) 
+		max := int(^uint(0) >> 1)
 		regionNum := -1
 		for i := 2; i < region; i++ {
 			if d.Regions[i] < max {
@@ -345,9 +346,9 @@ func (d *Dungeon) Generate() {
 	}
 }
 
-func (d *Dungeon) Print () {
-	for _, row := range(d.Grid) {
-		for _, col := range(row) {
+func (d *Dungeon) Print() {
+	for _, row := range d.Grid {
+		for _, col := range row {
 			if col == 0 {
 				fmt.Print(" ")
 			} else {
@@ -358,15 +359,15 @@ func (d *Dungeon) Print () {
 	}
 }
 
-func RandInt(min int, max int) int {
-  if max == min {
-    return min
-  }
-  return rand.Int() % (max-min) + min
+func RandInt(min int, max int, rnd Randomizer) int {
+	if max == min {
+		return min
+	}
+	return rnd.Int()%(max-min) + min
 }
 
 func Contains(arr []int, item int) bool {
-	for _, v := range(arr) {
+	for _, v := range arr {
 		if v == item {
 			return true
 		}
